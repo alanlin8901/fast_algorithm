@@ -162,24 +162,6 @@ int main(int argc, char* argv[]) {
         all_P.clear();
     }
 
-    //APPROXISC//
-    if (runAPPROXISC) {
-        cout << "APPROXISC" << endl;
-        double gamma = 0.95;
-        double epsilon = 0.005;
-        auto start_approxisc = high_resolution_clock::now();
-        for (int target: targetnodes) {
-            int max_length = max_random_walk_length(filename, target, gamma);
-            vector<Edge> P_approxisc = processEdgesWithScores(filename, k, target, max_length, epsilon);
-            all_P.push_back(make_pair(target, P_approxisc));
-        }
-        auto stop_approxisc = high_resolution_clock::now();
-        auto duration_fasticm = duration_cast<milliseconds>(stop_approxisc - start_approxisc);
-        cout << "APPROXISC running time: " << duration_fasticm.count() / 1000.0 << " seconds" << endl;
-        printTargetNodesAndEdges(filename, "APPROXISC", targetnodes, all_P);
-        all_P.clear();
-    }
-
     //FASTICM//
     if (runFASTICM) {
         cout << "FASTICM" << endl;
@@ -196,6 +178,24 @@ int main(int argc, char* argv[]) {
         auto duration_fasticm = duration_cast<milliseconds>(stop_fasticm - start_fasticm);
         cout << "FASTICM running time: " << duration_fasticm.count() / 1000.0 << " seconds" << endl;
         printTargetNodesAndEdges(filename, "FASTICM", targetnodes, all_P);
+        all_P.clear();
+    }
+    
+    //APPROXISC//
+    if (runAPPROXISC) {
+        cout << "APPROXISC" << endl;
+        double gamma = 0.95;
+        double epsilon = 0.005;
+        auto start_approxisc = high_resolution_clock::now();
+        for (int target: targetnodes) {
+            int max_length = max_random_walk_length(filename, target, gamma);
+            vector<Edge> P_approxisc = processEdgesWithScores(filename, k, target, max_length, epsilon);
+            all_P.push_back(make_pair(target, P_approxisc));
+        }
+        auto stop_approxisc = high_resolution_clock::now();
+        auto duration_fasticm = duration_cast<milliseconds>(stop_approxisc - start_approxisc);
+        cout << "APPROXISC running time: " << duration_fasticm.count() / 1000.0 << " seconds" << endl;
+        printTargetNodesAndEdges(filename, "APPROXISC", targetnodes, all_P);
         all_P.clear();
     }
     return 0;

@@ -4,6 +4,8 @@
 #include <random>
 #include <cstdio>
 #include <algorithm>
+#include <thread>
+#include <mutex>
 #include <unordered_map>
 #include <unordered_set>
 #include <Eigen/Dense>
@@ -13,6 +15,7 @@
 using namespace std;
 using namespace Eigen;
 
+//
 class Graph {
 public:
     std::unordered_map<int, std::vector<int>> adjList;
@@ -203,10 +206,13 @@ public:
 
 class CSR {
 private:
-    std::vector<int> row_ptr;  // Start indices of rows in col_idx
-    std::vector<int> col_idx;  // Column indices (target nodes for edges)
+    std::shared_ptr<std::vector<int>> row_ptr = std::make_shared<std::vector<int>>();
+    std::shared_ptr<std::vector<int>> col_idx = std::make_shared<std::vector<int>>();
+    std::shared_ptr<std::vector<int>> dirct_vertex = std::make_shared<std::vector<int>>();
+    std::shared_ptr<std::vector<int>> dirct_edge = std::make_shared<std::vector<int>>();
     int num_nodes;             // Number of nodes in the graph
     int num_edges;             // Number of edges in the graph
+    std::mutex edge_scores_mutex;
 
 public:
     // Constructor
@@ -217,31 +223,103 @@ public:
             std::cerr << "Unable to open file " << filename << std::endl;
             return;
         }
+
         std::vector<std::pair<int, int>> edges;
         int max_node = -1;
         int u, v;
+
+        // Parse the .mtx file, assuming it's in the format "u v" (1-indexed)
         while (file >> u >> v) {
-            edges.emplace_back(u, v);
-            edges.emplace_back(v, u);
-            max_node = std::max(max_node, std::max(u, v));
+            // Ensure edges are stored in ascending order
+            if (u > v)
+                edges.emplace_back(v - 1, u - 1);
+            else
+                edges.emplace_back(u - 1, v - 1);
+
+            max_node = std::max(max_node, std::max(u - 1, v - 1)); // Track the maximum node index
+
+            // Add the reverse edge for undirected graph
+            if (u != v) {
+                if (u > v)
+                    edges.emplace_back(u - 1, v - 1);
+                else
+                    edges.emplace_back(v - 1, u - 1);
+            }
         }
+
         file.close();
-        num_nodes = max_node;
-        num_edges = edges.size() / 2;
-        row_ptr.resize(num_nodes + 1, 0);
+
+        // Initialize CSR components
+        row_ptr->resize(max_node + 2, 0);
+
+        // Count the number of edges for each row
         for (const auto& edge : edges) {
-            row_ptr[edge.first + 1]++;
+            (*row_ptr)[edge.first + 1]++;
         }
-        for (int i = 1; i <= num_nodes; ++i) {
-            row_ptr[i] += row_ptr[i - 1];
+
+        // Accumulate counts to get row pointers
+        for (int i = 1; i < row_ptr->size(); ++i) {
+            (*row_ptr)[i] += (*row_ptr)[i - 1];
         }
-        col_idx.resize(edges.size());
-        std::vector<int> current_row_count(num_nodes, 0);
+
+        // Fill column indices
+        col_idx->resize(edges.size());
+        std::vector<int> current_row_count(max_node + 1, 0);
+
         for (const auto& edge : edges) {
             int row = edge.first;
-            int index = row_ptr[row] + current_row_count[row]++;
-            col_idx[index] = edge.second;
+            int dest = edge.second;
+            int index = (*row_ptr)[row] + current_row_count[row];
+            (*col_idx)[index] = dest;
+            current_row_count[row]++;
         }
+
+        // Open the file again to get the direct vertex and edge
+        file.open(filename);
+        edges.clear();
+        max_node = -1;
+
+        // Parse the .mtx file, assuming it's in the format "u v" (1-indexed)
+        while (file >> u >> v) {
+            // Ensure edges are stored in ascending order
+            if (u > v)
+                edges.emplace_back(v - 1, u - 1);
+            else
+                edges.emplace_back(u - 1, v - 1);
+
+            max_node = std::max(max_node, std::max(u - 1, v - 1)); // Track the maximum node index
+        }
+
+        file.close();
+
+        // Initialize CSR components
+        dirct_vertex->resize(max_node + 1, 0);
+        dirct_edge->resize(edges.size());
+
+        // Count the number of edges for each row
+        num_nodes = dirct_vertex->size();
+        num_edges = edges.size();
+        for (const auto& edge : edges) {
+            (*dirct_vertex)[edge.first + 1]++;
+        }
+
+        // Accumulate counts to get row pointers
+        for (int i = 1; i < dirct_vertex->size(); ++i) {
+            (*dirct_vertex)[i] += (*dirct_vertex)[i - 1];
+        }
+
+        // Fill column indices
+        current_row_count.assign(max_node, 0);
+
+        for (const auto& edge : edges) {
+            int row = edge.first;
+            int dest = edge.second;
+            int index = (*dirct_vertex)[row] + current_row_count[row];
+            (*dirct_edge)[index] = dest;
+            current_row_count[row]++;
+        }
+
+        return;
     }
     void addEdge(int u, int v) {
         throw std::runtime_error("Dynamic edge addition not supported in CSR.");
@@ -250,15 +328,15 @@ public:
         if (node < 0 || node >= num_nodes) {
             return {};
         }
-        return std::vector<int>(col_idx.begin() + row_ptr[node], col_idx.begin() + row_ptr[node + 1]);
+        return std::vector<int>(dirct_edge->begin() + (*dirct_vertex)[node], dirct_edge->begin() + (*dirct_vertex)[node + 1]);
     }
     void printCSR() const {
-        std::cout << "row_ptr: ";
-        for (const auto& val : row_ptr) {
+        std::cout << "dirct_vertex: ";
+        for (const auto& val : *dirct_vertex) {
             std::cout << val << " ";
         }
-        std::cout << "\ncol_idx: ";
-        for (const auto& val : col_idx) {
+        std::cout << "\ndirct_edge: ";
+        for (const auto& val : *dirct_edge) {
             std::cout << val << " ";
         }
         std::cout << std::endl;
@@ -270,10 +348,10 @@ public:
         return num_edges;
     }
     const std::vector<int>& getRowPtr() const {
-        return row_ptr;
+        return *row_ptr;
     }
     const std::vector<int>& getColIdx() const {
-        return col_idx;
+        return *col_idx;
     }
 
     float randomWalk(int source, int target, int steps) const {
@@ -282,52 +360,83 @@ public:
         std::uniform_real_distribution<float> dis(0.0, 1.0);
         int current_node = source;
         for (int current_step = 0; current_step < steps; ++current_step) {
-            int start = row_ptr[current_node];
-            int end = (current_node >= row_ptr.size() - 1) ? col_idx.size() : row_ptr[current_node + 1];
+            int start = (*row_ptr)[current_node];
+            int end = (current_node >= row_ptr->size() - 1) ? col_idx->size() : (*row_ptr)[current_node + 1];
             if (start == end) {
                 return 0.0f;
             }
-            int next_node = col_idx[start + static_cast<int>((end - start) * dis(gen))];
+            int next_node = (*col_idx)[start + static_cast<int>((end - start) * dis(gen))];
             current_node = next_node;
             if (current_node == target) {
-                return 1.0f / current_step;
+                return 1.0f / static_cast<float>(current_step + 1);
             }
         }
         return 0.0f;
     }
 
     std::vector<float> calculateEdgeScore(int target, int rho, int steps) {
-        std::vector<float> edge_scores(col_idx.size(), 0.0f); 
+        auto edge_scores = std::make_shared<std::vector<float>>();
+        edge_scores->resize(dirct_edge->size(), 0);
         int target_index = target - 1;
-        for (int i = 0; i < row_ptr.size() - 1; ++i) {
-            int start = row_ptr[i];
-            int end = (i == row_ptr.size() - 1) ? col_idx.size() : row_ptr[i + 1];
-            if (i == target_index) {
+
+        std::vector<std::thread> threads;
+        threads.reserve(num_nodes);
+
+        for (int i = 0; i < num_nodes; ++i) {
+            threads.emplace_back([&, i]() {
+                int source_1 = i;
+                int start = (*dirct_vertex)[i];
+                int end = (i == dirct_vertex->size() - 1) ? dirct_edge->size() : (*dirct_vertex)[i + 1];
+
+                if (source_1 == target_index) {
+                    for (int j = start; j < end; ++j) {
+                        int source_2 = (*dirct_edge)[j];
+
+                        float score_sum = 0;
+                        for (int count = 0; count < rho; ++count) {
+                            float v1_score = randomWalk(source_2, target_index, steps);
+                            if (v1_score != 0) {
+                                score_sum += v1_score;
+                            }
+                        }
+
+                        std::lock_guard<std::mutex> lock(edge_scores_mutex);
+                        (*edge_scores)[j] = score_sum / (float)rho;
+                    }
+                    return;
+                }
+
                 for (int j = start; j < end; ++j) {
-                    int source_2 = col_idx[j];
+                    int source_2 = (*dirct_edge)[j];
                     float score_sum = 0;
+
                     for (int count = 0; count < rho; ++count) {
-                        float v1_score = randomWalk(source_2, target_index, steps);
-                        score_sum += v1_score;
+                        float v1_score = randomWalk(source_1, target_index, steps);
+
+                        if (source_2 != target_index) {
+                            float v2_score = randomWalk(source_2, target_index, steps);
+                            if (v1_score != 0 && v2_score != 0) {
+                                score_sum += (v1_score + v2_score);
+                            }
+                        } else {
+                            if (v1_score != 0) {
+                                score_sum += v1_score;
+                            }
+                        }
                     }
-                    edge_scores[j] = score_sum / (float)rho;
+
+                    std::lock_guard<std::mutex> lock(edge_scores_mutex);
+                    (*edge_scores)[j] = score_sum / (float)rho;
                 }
-                return edge_scores;
-            }
-            for (int j = start; j < end; ++j) {
-                int source_2 = col_idx[j];
-                float score_sum = 0;
-                for (int count = 0; count < rho; ++count) {
-                    float v1_score = randomWalk(i, target_index, steps);
-                    if (source_2 != target_index) {
-                        float v2_score = randomWalk(source_2, target_index, steps);
-                        score_sum += (v1_score + v2_score);
-                    }
-                }
-                edge_scores[j] = score_sum / (float)rho;
+            });
+        }
+
+        for (auto& thread : threads) {
+            if (thread.joinable()) {
+                thread.join();
             }
         }
-        return edge_scores;
+        return *edge_scores;
     }
 };
 
@@ -359,7 +468,7 @@ EdgeList processEdgesWithScores(string filename, int k, int target, int maxLengt
     for (int i = 0; i < k && i < edges_with_scores.size(); ++i) {
         int source_vertex = std::get<0>(edges_with_scores[i]);
         int target_vertex = std::get<1>(edges_with_scores[i]);
-        P.push_back({source_vertex, target_vertex});
+        P.push_back({source_vertex + 1, target_vertex + 1});
     }
     return P;
 }

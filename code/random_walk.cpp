@@ -179,7 +179,7 @@ void calculateEdgeScore(const std::vector<int>& row_ptr, const std::vector<int>&
 
 int main(int argc, char* argv[]) {
     std::string filename;
-    int target = 1;
+    int target = 12;
     int rho = 1000;
     int steps = 1000;
 

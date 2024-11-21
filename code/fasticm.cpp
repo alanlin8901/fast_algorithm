@@ -17,16 +17,11 @@
 
 class Graph {
 public:
-    // Adjacency list using unordered_map (key: node, value: set of neighbors)
     std::unordered_map<int, std::vector<int>> adjList;
-
-    // Function to add an edge
     void addEdge(int u, int v) {
         adjList[u].push_back(v);
         adjList[v].push_back(u);
     }
-
-    // Function to remove an edge
     void removeEdge(int node1, int node2) {
     // Remove node2 from node1's adjacency list
         if (adjList.find(node1) != adjList.end()) {
