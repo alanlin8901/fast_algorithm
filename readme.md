@@ -101,7 +101,7 @@ Execute the compiled binary with the following syntax:
 
 Results are stored in the `result/` folder.
 
-#### Example Output:
+#### Example Output in terminal when running `main`:
 ```text
 Target nodes: [12, 15]
 OPTIMUM running time: 10.213 seconds
@@ -116,25 +116,27 @@ EXACTSM edges to remove: [(12, 0), (15, 2), (6, 3)]
 
 The Jupyter notebook `python/Test_information_centrality.ipynb` allows you to analyze the graph before and after edge removal. Modify the following parameters in the notebook:
 ```python
-filename = "../data/karate.mtx"
-target_nodes = [12]
-edges_to_remove = [(12, 0), (5, 3)]
-```
-
-#### Example for Multiple Targets and Edges:
-```python
-filename = "../data/karate.mtx"
-target_nodes = [12, 5]
-edges_to_remove = [
-  [(102, 46), (103, 67), (104, 67)],
-  [(5, 3), (7, 5), (6, 5)]
-]
+# Modify here
+data_name = "karate"
 ```
 
 #### Output Example:
 ```text
-Before removal: Average information centrality of target nodes = 1.37
-After removal: Average information centrality of target nodes = 1.33
+Information of target nodes when remove edges from ../result/karateFASTICM_result.txt
+Before remove edges of information centrality average of target nodes: 1.48
+After remove edges of information centrality average of target nodes: 1.23
+
+Information of target nodes when remove edges from ../result/karateAPPROXISC_result.txt
+Before remove edges of information centrality average of target nodes: 1.48
+After remove edges of information centrality average of target nodes: 1.30
+
+Information of target nodes when remove edges from ../result/karateEXACTSM_result.txt
+Before remove edges of information centrality average of target nodes: 1.48
+After remove edges of information centrality average of target nodes: 0.82
+
+Information of target nodes when remove edges from ../result/karateOPTIMUM_result.txt
+Before remove edges of information centrality average of target nodes: 1.48
+After remove edges of information centrality average of target nodes: 0.82
 ```
 
 ---

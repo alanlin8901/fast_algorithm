@@ -468,7 +468,7 @@ EdgeList APPROXISC(string filename, int k, int target, int maxLength, double eps
     for (int i = 0; i < k && i < edges_with_scores.size(); ++i) {
         int source_vertex = std::get<0>(edges_with_scores[i]);
         int target_vertex = std::get<1>(edges_with_scores[i]);
-        P.push_back({source_vertex + 1, target_vertex + 1});
+        P.push_back({source_vertex, target_vertex});
     }
     return P;
 }
@@ -838,7 +838,7 @@ EdgeList FASTICM(std::string filename, int numberOfEdge, int targetNode,
             }
         }
         g.removeEdge(maxEdge.first, maxEdge.second);
-        P.push_back(maxEdge);
+        P.push_back({maxEdge.first - 1, maxEdge.second - 1});
     }
     return P;
 }
