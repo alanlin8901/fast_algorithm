@@ -441,7 +441,7 @@ public:
 };
 
 // Function to read the graph, calculate edge scores, and return vector<Edge>
-EdgeList processEdgesWithScores(string filename, int k, int target, int maxLength, double epsilon) {
+EdgeList APPROXISC(string filename, int k, int target, int maxLength, double epsilon) {
     CSR g;
     g.loadFromFile(filename);
     int rho = static_cast<int>(log(g.getNumNodes()) / pow(epsilon, 2) / 200);
@@ -765,7 +765,7 @@ int max_random_walk_length(string filename, int target, double gamma) {
     return max_length;
 }
 
-EdgeList APPROXISC(string filename, int numberOfEdge, int targetNode, int maxLength, double epsilon) {
+EdgeList APPROXISC_fail(string filename, int numberOfEdge, int targetNode, int maxLength, double epsilon) {
     Graph g;
     g.readFromFile(filename);
     int rho = static_cast<int>(log(g.getNumNodes()) / pow(epsilon, 2) / 10);

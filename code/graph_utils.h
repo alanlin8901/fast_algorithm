@@ -36,8 +36,8 @@ void printTargetNodesAndEdges(const std::string& inputFilename, const std::strin
 EdgeList EXACTSM(string filename, int targetnode, int k);
 EdgeList OPTIMUM(string filename, int targetnode, int k);
 int max_random_walk_length(string filename, int target, double gamma);
-EdgeList APPROXISC(string filename, int k, int targetnode, int maxLength, double epsilon);
+EdgeList APPROXISC_fail(string filename, int k, int targetnode, int maxLength, double epsilon);
 EdgeList FASTICM(string filename, int k, int targetnode, int maxLength, double alpha, int phi);
-EdgeList processEdgesWithScores(string filename, int k, int target, int maxLength, double epsilon);
+EdgeList APPROXISC(string filename, int k, int target, int maxLength, double epsilon);
 
 #endif // GRAPH_UTILS_H//
