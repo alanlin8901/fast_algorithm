@@ -176,8 +176,6 @@ public:
         std::vector<std::pair<int, int>> removeEdge;
         std::vector<double> removeEdgeResistance;
         std::vector<std::pair<int, int>> edgesToRemove;
-        
-
         for (const auto& pair : g.adjList) {
             int node1 = pair.first;
             for (int node2: pair.second) {
@@ -249,13 +247,6 @@ public:
         for (int i = 0; i < node_degree.size(); ++i) {
             (*row_ptr)[i + 1] = (*row_ptr)[i] + node_degree[i];
         }
-        // for (const auto& edge : edges) {
-        //     (*row_ptr)[edge.first + 1]++;
-        // }
-        // for (int i = 1; i < row_ptr->size(); ++i) {
-        //     (*row_ptr)[i] += (*row_ptr)[i - 1];
-        // }
-
         // Fill column indices
         col_idx->resize(edges.size() * 2);
         std::vector<int> current_row_count(max_node + 1, 0);
@@ -275,22 +266,18 @@ public:
         dirct_edge->resize(edges.size());
         num_nodes = max_node + 1;
         num_edges = edges.size();
-
-        current_row_count.assign(max_node + 1, 0);
+        // current_row_count.assign(max_node + 1, 0);
         for (const auto& edge : edges) {
             (*dirct_vertex)[edge.first + 1]++;
         }
-
         for (int i = 1; i < dirct_vertex->size(); ++i) {
             (*dirct_vertex)[i] += (*dirct_vertex)[i - 1];
         }
-
+        std::vector<int> temp_position = (*dirct_vertex);
         for (const auto& edge : edges) {
-            int row = edge.first;
-            int dest = edge.second;
-            int index = (*dirct_vertex)[row] + current_row_count[row];
-            (*dirct_edge)[index] = dest;
-            current_row_count[row]++;
+            int u = edge.first;
+            int v = edge.second;
+            (*dirct_edge)[temp_position[u]++] = v;
         }
     }
     void addEdge(int u, int v) {
@@ -345,47 +332,62 @@ public:
         for (int current_step = 0; current_step < steps; ++current_step) {
             int start = (*row_ptr)[current_node];
             int end = (*row_ptr)[current_node + 1];
-            if (start >= end) {
-                return 0.0f;  // No neighbors to walk to
+            int degree = end - start;
+            if (degree == 0) {
+                return 0.0f;
             }
-            int next_node = (*col_idx)[start + static_cast<int>((end - start) * dis(gen))];
-            current_node = next_node;
+            int next_index = start + (std::rand() % degree);
+            current_node = (*col_idx)[next_index];;
             if (current_node == target) {
-                return 1.0f / static_cast<float>(current_step + 1);
+                return 1.0f / static_cast<float>(current_step);
             }
         }
         return 0.0f;
     }
 
-    std::vector<float> calculateEdgeScore(int target, int rho, int steps) {
+    std::vector<float> calculateEdgeScore(int target, int rho, int max_length) {
         auto edge_scores = std::make_shared<std::vector<float>>(dirct_edge->size(), 0);
         int target_index = target;
-
         std::vector<std::thread> threads;
         threads.reserve(num_nodes);
-
-        for (int i = 0; i < num_nodes; ++i) {
+        float max_score = 1e9;
+        for (int i = 0; i < num_nodes; ++i) 
             threads.emplace_back([&, i]() {
-                int start = (*dirct_vertex)[i];
-                int end = (*dirct_vertex)[i + 1];
-                for (int j = start; j < end; ++j) {
-                    int neighbor = (*dirct_edge)[j];
-                    float score_sum = 0;
-
-                    for (int count = 0; count < rho; ++count) {
-                        float v1_score = randomWalk(i, target_index, steps);
-                        float v2_score = randomWalk(neighbor, target_index, steps);
-                        if (v1_score != 0 && v2_score != 0) {
-                            score_sum += v1_score + v2_score;
+            for (int j = (*dirct_vertex)[i] ; j < (*dirct_vertex)[i + 1]; ++j) {
+                int u = i;
+                int v = (*dirct_edge)[j];
+                float value = 0;
+                for (int count = 0; count < rho; ++count) {
+                    float u_score = randomWalk(u, target_index, max_length);
+                    float v_score = randomWalk(v, target_index, max_length);
+                    u_score = std::min(u_score, max_score);
+                    v_score = std::min(v_score, max_score);
+                    if (u_score > 0 && v_score > 0) {
+                            value += u_score + v_score;
                         }
-                    }
-
-                    std::lock_guard<std::mutex> lock(edge_scores_mutex);
-                    (*edge_scores)[j] = score_sum / static_cast<float>(rho);
+                }
+                std::lock_guard<std::mutex> lock(edge_scores_mutex);
+                (*edge_scores)[j] += value / static_cast<float>(rho);
                 }
             });
-        }
-
+            // threads.emplace_back([&, i]() {
+            //     int start = (*dirct_vertex)[i];
+            //     int end = (*dirct_vertex)[i + 1];
+            //     for (int j = start; j < end; ++j) {
+            //         int neighbor = (*dirct_edge)[j];
+            //         float score_sum = 0;
+            //         for (int count = 0; count < rho; ++count) {
+            //             float v1_score = randomWalk(i, target_index, max_length);
+            //             float v2_score = randomWalk(neighbor, target_index, max_length);
+            //             if (v1_score != 0 && v2_score != 0) {
+            //                 score_sum += v1_score + v2_score;
+            //             }
+            //         }
+            //         std::lock_guard<std::mutex> lock(edge_scores_mutex);
+            //         (*edge_scores)[j] = score_sum / static_cast<float>(rho);
+            //     }
+            // });
+        // }
         for (auto& thread : threads) {
             if (thread.joinable()) {
                 thread.join();
@@ -399,12 +401,12 @@ EdgeList APPROXISC(string filename, int k, int target, int maxLength, double eps
     CSR g;
     g.loadFromFile(filename);
     // g.printCSR();
-    int rho = static_cast<int>(log(g.getNumNodes()) / pow(epsilon, 2) / 10);
+    int rho = static_cast<int>(0.1 * log2(g.getNumNodes()) / pow(epsilon, 2));
     std::vector<float> edge_scores;
-    edge_scores = g.calculateEdgeScore(target, rho, maxLength);
     std::vector<std::tuple<int, int, float>> edges_with_scores;
     const auto& row_ptr = g.getRowPtr();
     const auto& col_idx = g.getColIdx();
+    edge_scores = g.calculateEdgeScore(target, rho, maxLength * 0.5);
     for (int i = 0; i < g.getNumEdges(); ++i) {
         int source_vertex = -1;
         for (int j = 0; j < g.getNumNodes(); ++j) {
@@ -716,7 +718,7 @@ int max_random_walk_length(string filename, int target, double gamma) {
         std::cerr << "Error: Spectral radius is less than or equal to 1, invalid for max_length calculation!" << std::endl;
         return -1;
     }
-    int max_length = static_cast<int>(0.05 * (std::log(m * gamma / std::sqrt(n - 1)) * d_norm) / std::log(spectral_radius));
+    int max_length = static_cast<int>(0.5 * (std::log(m * gamma / std::sqrt(n - 1)) * d_norm) / std::log(spectral_radius));
     return max_length;
 }
 
@@ -769,8 +771,8 @@ EdgeList FASTICM(std::string filename, int numberOfEdge, int targetNode,
     double beta = alpha / 2;
     double epsilon = (alpha / 2) / phi;
     int n = p.getNumNodes();
-    int rho = static_cast<int>(log(n) / pow(epsilon, 2) / 10);
-    int t = static_cast<int>(0.03 * phi * sqrt(n * log(n)) / beta);
+    int rho = static_cast<int>(0.1 * log2(n) / pow(epsilon, 2));
+    int t = static_cast<int>(0.5 * phi * sqrt(n * log(n)) / beta);
     t = (t > n) ? 0 : n - t;
     std::unordered_set<int> excludedNodes;
     optimizedRandomNodeSelection(n, t, targetNode, excludedNodes);
@@ -794,7 +796,7 @@ EdgeList FASTICM(std::string filename, int numberOfEdge, int targetNode,
             }
         }
         g.removeEdge(maxEdge.first, maxEdge.second);
-        P.push_back({maxEdge.first, maxEdge.second});
+        P.push_back({maxEdge.first - 1, maxEdge.second - 1});
     }
     return P;
 }
