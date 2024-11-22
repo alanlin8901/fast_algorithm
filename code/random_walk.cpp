@@ -82,6 +82,25 @@ void readMtxToCSR(const std::string& filename, std::vector<int>& row_ptr, std::v
         current_row_count[row]++;
     }
 
+   
+    std::cout << "row_ptr: ";
+    for (const auto& val : row_ptr) {
+        std::cout << val << " ";
+    }
+    std::cout << "\ncol_idx: ";
+    for (const auto& val : col_idx) {
+        std::cout << val << " ";
+    }
+    std::cout << "\ndirct_vertex: ";
+    for (const auto& val : dirct_vertex) {
+        std::cout << val << " ";
+    }
+    std::cout << "\ndirct_edge: ";
+    for (const auto& val : dirct_edge) {
+        std::cout << val << " ";
+    }
+    std::cout << std::endl;
+
     return;
 }
 
