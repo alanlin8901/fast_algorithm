@@ -227,6 +227,67 @@ private:
 
 public:
     CSR() : num_nodes(0), num_edges(0) {}
+
+    void readFromFileWithFilter(const std::string& filename, const std::unordered_set<int>& excludedNodes) {
+        std::ifstream file(filename);
+        if (!file.is_open()) {
+            std::cerr << "Unable to open file " << filename << std::endl;
+            return;
+        }
+        std::vector<std::pair<int, int>> edges;
+        int max_node = -1;
+        int u, v;
+        while (file >> u >> v) {
+            if (u <= 0 || v <= 0) {
+                std::cerr << "Invalid node indices in the file!" << std::endl;
+                return;
+            }
+            u -= 1;
+            v -= 1;
+            if (excludedNodes.find(u) == excludedNodes.end() && excludedNodes.find(v) == excludedNodes.end()) {
+                edges.emplace_back(u, v);
+                max_node = std::max(max_node, std::max(u, v));
+            }
+        }
+        file.close();
+        row_ptr->resize(max_node + 2, 0);
+        std::vector<int> node_degree(max_node + 1, 0);
+        for (const auto& edge : edges) {
+            node_degree[edge.first]++;
+            node_degree[edge.second]++;
+        }
+        for (int i = 0; i < node_degree.size(); ++i) {
+            (*row_ptr)[i + 1] = (*row_ptr)[i] + node_degree[i];
+        }
+        col_idx->resize(edges.size() * 2);
+        std::vector<int> current_row_count(max_node + 1, 0);
+        for (const auto& edge : edges) {
+            int row = edge.first;
+            int dest = edge.second;
+            int index_1 = (*row_ptr)[row] + current_row_count[row];
+            int index_2 = (*row_ptr)[dest] + current_row_count[dest];
+            (*col_idx)[index_1] = dest;
+            (*col_idx)[index_2] = row;
+            current_row_count[row]++;
+            current_row_count[dest]++;
+        }
+        dirct_vertex->resize(max_node + 2, 0);
+        dirct_edge->resize(edges.size());
+        num_nodes = max_node + 1;
+        num_edges = edges.size();
+        for (const auto& edge : edges) {
+            (*dirct_vertex)[edge.first + 1]++;
+        }
+        for (int i = 1; i < dirct_vertex->size(); ++i) {
+            (*dirct_vertex)[i] += (*dirct_vertex)[i - 1];
+        }
+        std::vector<int> temp_position = (*dirct_vertex);
+        for (const auto& edge : edges) {
+            int u = edge.first;
+            int v = edge.second;
+            (*dirct_edge)[temp_position[u]++] = v;
+        }
+    }
     void loadFromFile(const std::string& filename) {
         std::ifstream file(filename);
         if (!file.is_open()) {
@@ -773,7 +834,50 @@ void optimizedRandomNodeSelection(int n, int t, int targetNode, std::unordered_s
     excludedNodes.insert(nodes.begin(), nodes.begin() + t);
 }
 
-EdgeList FASTICM(std::string filename, int numberOfEdge, int targetNode, 
+EdgeList FASTICM(std::string filename, int k, int targetNode, 
+    int maxLength, double alpha, int phi) {
+    CSR p;
+    p.loadFromFile(filename);
+    // g.printCSR();
+    int n = p.getNumNodes();
+    double beta = alpha / 2;
+    double epsilon = (alpha / 2) / phi;
+    int t = static_cast<int>(0.5 * phi * sqrt(n * log(n)) / beta);
+    t = (t > n) ? 0 : n - t;
+    std::unordered_set<int> excludedNodes;
+    optimizedRandomNodeSelection(n, t, targetNode, excludedNodes);
+    CSR g;
+    g.readFromFileWithFilter(filename, excludedNodes);
+    int gn = g.getNumNodes();
+    int rho = static_cast<int>(0.01 * log2(gn) / pow(epsilon, 2) / maxLength);
+    std::vector<float> edge_scores;
+    std::vector<std::tuple<int, int, float>> edges_with_scores;
+    const auto& row_ptr = g.getRowPtr();
+    const auto& col_idx = g.getColIdx();
+    edge_scores = g.calculateEdgeScore(targetNode, rho, maxLength * 0.5);
+    for (int i = 0; i < g.getNumEdges(); ++i) {
+        int source_vertex = -1;
+        for (int j = 0; j < g.getNumNodes(); ++j) {
+            if (i >= row_ptr[j] && i < row_ptr[j + 1]) {
+                source_vertex = j;
+                break;
+            }
+        }
+        int target_vertex = col_idx[i];
+        edges_with_scores.emplace_back(source_vertex, target_vertex, edge_scores[i]);
+    }
+    std::sort(edges_with_scores.begin(), edges_with_scores.end(), [](const std::tuple<int, int, float>& a, const std::tuple<int, int, float>& b) {
+        return std::get<2>(a) > std::get<2>(b);
+    });
+    EdgeList P;
+    for (int i = 0; i < k && i < edges_with_scores.size(); ++i) {
+        int source_vertex = std::get<0>(edges_with_scores[i]);
+        int target_vertex = std::get<1>(edges_with_scores[i]);
+        P.push_back({source_vertex, target_vertex});
+    }
+    return P;
+}
+EdgeList FASTICM_fail(std::string filename, int numberOfEdge, int targetNode, 
     int maxLength, double alpha, int phi) {
     Graph p;
     p.readFromFile(filename);
@@ -781,7 +885,7 @@ EdgeList FASTICM(std::string filename, int numberOfEdge, int targetNode,
     double beta = alpha / 2;
     double epsilon = (alpha / 2) / phi;
     int t = static_cast<int>(0.5 * phi * sqrt(n * log(n)) / beta);
-    int rho = static_cast<int>(log2(n) / (pow(epsilon, 2) * t));
+    int rho = static_cast<int>(log2(n) / (pow(epsilon, 2) * maxLength));
     t = (t > n) ? 0 : n - t;
     std::unordered_set<int> excludedNodes;
     optimizedRandomNodeSelection(n, t, targetNode, excludedNodes);

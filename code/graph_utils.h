@@ -37,6 +37,7 @@ EdgeList EXACTSM(string filename, int targetnode, int k);
 EdgeList OPTIMUM(string filename, int targetnode, int k);
 int max_random_walk_length(string filename, int target, double gamma);
 EdgeList APPROXISC_fail(string filename, int k, int targetnode, int maxLength, double epsilon);
+EdgeList FASTICM_fail(string filename, int k, int targetnode, int maxLength, double alpha, int phi);
 EdgeList FASTICM(string filename, int k, int targetnode, int maxLength, double alpha, int phi);
 EdgeList APPROXISC(string filename, int k, int target, int maxLength, double epsilon);
 
