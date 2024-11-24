@@ -184,7 +184,7 @@ int main(int argc, char* argv[]) {
     if (runFASTICM) {
         cout << "FASTICM" << endl;
         double gamma = 0.95;
-        double alpha = 0.05;
+        double alpha = 0.005;
         int phi = diameter;
         auto start_fasticm = high_resolution_clock::now();
         for (int target: targetnodes) {

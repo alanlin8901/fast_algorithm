@@ -125,38 +125,49 @@ public:
     std::pair<std::vector<std::pair<int, int>>, int> randomEdgeWalk(int startNode, int targetNode, int maxLength) {
         std::vector<std::pair<int, int>> pathEdges;
         std::vector<int> path;
-        std::unordered_map<int, bool> visited;
+        std::unordered_set<int> visited;
         std::srand(std::time(nullptr));  
         std::default_random_engine rng(std::rand());
         int walkLength = 0;
         int currentNode = startNode;
+        visited.insert(currentNode);
         for (int step = 0; step < maxLength; ++step) {
             if (currentNode == targetNode || adjList[currentNode].empty()) {
                 break;
             }
-            std::uniform_int_distribution<int> dist(0, adjList[currentNode].size() - 1);
-            currentNode = adjList[currentNode][dist(rng)];
+            std::vector<int> unvisitedNeighbors;
+            for (int neighbor : adjList[currentNode]) {
+                if (visited.find(neighbor) == visited.end()) {
+                    unvisitedNeighbors.push_back(neighbor);
+                }
+            }
+            if (unvisitedNeighbors.empty()) {
+                break;
+            }
+            std::uniform_int_distribution<int> dist(0, unvisitedNeighbors.size() - 1);
+            currentNode = unvisitedNeighbors[dist(rng)];
             path.push_back(currentNode);
+            visited.insert(currentNode);
             walkLength++;
         }
         pathEdges = getPathEdges(path);
         return {pathEdges, walkLength};
     }
 
-    std::pair<std::vector<std::vector<std::pair<int, int>>>, std::vector<int>> collectAllPaths(int targetNode, int maxLength, int epsilon) {
+    std::pair<std::vector<std::vector<std::pair<int, int>>>, std::vector<int>> collectAllPaths(int targetNode, int maxLength, int rho) {
         std::vector<std::vector<std::pair<int, int>>> pathEdgesAll;
         std::vector<int> pathLengthAll;
         
-        for (int i = 0; i < epsilon; ++i) {
+        for (int i = 0; i < rho; ++i) {
             std::vector<std::vector<std::pair<int, int>>> localPathEdges;
             std::vector<int> localPathLengths;
             for (const auto& pair : adjList) {
                 int node1 = pair.first;
                 for (int node2 : pair.second) {
                     if (node1 < node2 && (node1 != targetNode || node2 != targetNode)) {
-                        std::pair<std::vector<std::pair<int, int>>, int> path1 = randomEdgeWalk(node1, targetNode, 0.5 * maxLength);
-                        std::pair<std::vector<std::pair<int, int>>, int> path2 = randomEdgeWalk(node2, targetNode, 0.5 * maxLength);
-                        if (path1.second & path2.second) {
+                        std::pair<std::vector<std::pair<int, int>>, int> path1 = randomEdgeWalk(node1, targetNode, maxLength);
+                        std::pair<std::vector<std::pair<int, int>>, int> path2 = randomEdgeWalk(node2, targetNode, maxLength);
+                        if (!path1.first.empty() && !path2.first.empty()) {
                             localPathEdges.push_back(path1.first);
                             localPathLengths.push_back(path1.second);
                             localPathEdges.push_back(path2.first);
@@ -188,8 +199,6 @@ public:
                                 weights_u += (abs(pathLengthAll[i] * (pathLengthAll[i+1]))) / (pathLengthAll[i] + pathLengthAll[ i+1]) ;
                                 weights_xy += (abs(pathLengthAll[i] - pathLengthAll[i+1]));
                             }
-                        } else {
-                            break;
                         }
                     }
                 }
@@ -401,7 +410,7 @@ EdgeList APPROXISC(string filename, int k, int target, int maxLength, double eps
     CSR g;
     g.loadFromFile(filename);
     // g.printCSR();
-    int rho = static_cast<int>(0.1 * log2(g.getNumNodes()) / pow(epsilon, 2));
+    int rho = static_cast<int>(0.1 * log2(g.getNumNodes()) / pow(epsilon, 2) / maxLength);
     std::vector<float> edge_scores;
     std::vector<std::tuple<int, int, float>> edges_with_scores;
     const auto& row_ptr = g.getRowPtr();
@@ -768,11 +777,11 @@ EdgeList FASTICM(std::string filename, int numberOfEdge, int targetNode,
     int maxLength, double alpha, int phi) {
     Graph p;
     p.readFromFile(filename);
+    int n = p.getNumNodes();
     double beta = alpha / 2;
     double epsilon = (alpha / 2) / phi;
-    int n = p.getNumNodes();
-    int rho = static_cast<int>(0.1 * log2(n) / pow(epsilon, 2));
     int t = static_cast<int>(0.5 * phi * sqrt(n * log(n)) / beta);
+    int rho = static_cast<int>(log2(n) / (pow(epsilon, 2) * t));
     t = (t > n) ? 0 : n - t;
     std::unordered_set<int> excludedNodes;
     optimizedRandomNodeSelection(n, t, targetNode, excludedNodes);
@@ -789,7 +798,7 @@ EdgeList FASTICM(std::string filename, int numberOfEdge, int targetNode,
         const auto& pathEdgesResistance = allResistance.second;
         std::pair<int, int> maxEdge;
         double maxResistance = std::numeric_limits<double>::infinity();
-        for (size_t i = 0; i < pathEdges.size(); ++i) {
+        for (size_t i = 10; i < pathEdges.size(); ++i) {
             if (pathEdgesResistance[i] < maxResistance) {
                 maxResistance = pathEdgesResistance[i];
                 maxEdge = pathEdges[i];

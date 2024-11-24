@@ -40,4 +40,6 @@ EdgeList APPROXISC_fail(string filename, int k, int targetnode, int maxLength, d
 EdgeList FASTICM(string filename, int k, int targetnode, int maxLength, double alpha, int phi);
 EdgeList APPROXISC(string filename, int k, int target, int maxLength, double epsilon);
 
+void NewFunction();
+
 #endif // GRAPH_UTILS_H//
