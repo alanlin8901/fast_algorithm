@@ -4,8 +4,8 @@
 #include <random>
 #include <cstdio>
 #include <algorithm>
-#include <thread>
-#include <mutex>
+// #include <thread>
+// #include <mutex>
 #include <unordered_map>
 #include <unordered_set>
 #include <Eigen/Dense>
@@ -223,7 +223,7 @@ private:
     std::shared_ptr<std::vector<int>> dirct_edge = std::make_shared<std::vector<int>>();
     int num_nodes;             // Number of nodes in the graph
     int num_edges;             // Number of edges in the graph
-    std::mutex edge_scores_mutex;
+    // std::mutex edge_scores_mutex;
 
 public:
     CSR() : num_nodes(0), num_edges(0) {}
@@ -418,11 +418,11 @@ public:
     std::vector<float> calculateEdgeScore(int target, int rho, int max_length) {
         auto edge_scores = std::make_shared<std::vector<float>>(dirct_edge->size(), 0);
         int target_index = target;
-        std::vector<std::thread> threads;
-        threads.reserve(num_nodes);
+        // std::vector<std::thread> threads;
+        // threads.reserve(num_nodes);
         float max_score = 1e9;
         for (int i = 0; i < num_nodes; ++i) 
-            threads.emplace_back([&, i]() {
+            // threads.emplace_back([&, i]() {
             for (int j = (*dirct_vertex)[i] ; j < (*dirct_vertex)[i + 1]; ++j) {
                 int u = i;
                 int v = (*dirct_edge)[j];
@@ -436,10 +436,10 @@ public:
                             value += u_score + v_score;
                         }
                 }
-                std::lock_guard<std::mutex> lock(edge_scores_mutex);
+                // std::lock_guard<std::mutex> lock(edge_scores_mutex);
                 (*edge_scores)[j] += value / static_cast<float>(rho);
                 }
-            });
+            // });
             // threads.emplace_back([&, i]() {
             //     int start = (*dirct_vertex)[i];
             //     int end = (*dirct_vertex)[i + 1];
@@ -458,11 +458,11 @@ public:
             //     }
             // });
         // }
-        for (auto& thread : threads) {
-            if (thread.joinable()) {
-                thread.join();
-            }
-        }
+        // for (auto& thread : threads) {
+        //     if (thread.joinable()) {
+        //         thread.join();
+        //     }
+        // }
         return *edge_scores;
     }
 };

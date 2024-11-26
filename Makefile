@@ -7,7 +7,7 @@ CXXFLAGS_17 = -std=c++17 -O3
 all:	main	optimum	exactsm	approxisc	random_walk	approxisc
 
 main:	code/main.cpp code/graph_utils.cpp
-	$(CXX)	$(CXXFLAGS_17)	$(DEPEND)	-pthread	code/main.cpp	code/graph_utils.cpp	-o	output/main		
+	$(CXX)	$(CXXFLAGS_17)	$(DEPEND)	code/main.cpp	code/graph_utils.cpp	-o	output/main		
 optimum:	code/optimum.cpp
 	$(CXX)	$(CXXFLAGS_14)	$(DEPEND)	code/optimum.cpp	-o	output/optimum	
 exactsm:	code/exactsm.cpp
