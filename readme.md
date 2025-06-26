@@ -1,6 +1,15 @@
 
 # A Fast Algorithm for Moderating Critical Nodes
 
+This repository contains a C++ implementation based on the ideas proposed in the paper:
+
+https://img.shields.io/badge/paper-implantation-green
+
+📄 **[A Fast Algorithm for Moderating Critical Nodes](https://arxiv.org/pdf/2309.06392)** 
+arXiv:2309.06392
+
+---
+
 ## Description
 
 This program calculates the effective resistance between pairs of nodes in a graph based on the Laplacian matrix and its pseudo-inverse. It employs fast algorithms to identify critical edges for removal to minimize the information centrality of specified target nodes. The computation leverages the Eigen library for efficient matrix operations and is designed for undirected, unweighted graphs. The output includes the sum of effective resistances, runtime performance, and the specific edges to remove.
