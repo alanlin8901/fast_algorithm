@@ -3,9 +3,9 @@
 
 ![Static Badge](https://img.shields.io/badge/paper-implantation-green)
 
-This repository contains a C++ implementation based on the ideas proposed in the paper:
+📄 This repository contains a C++ implementation based on the ideas proposed in the paper:
 
-📄 **[A Fast Algorithm for Moderating Critical Nodes](https://arxiv.org/pdf/2309.06392)** 
+**[A Fast Algorithm for Moderating Critical Nodes](https://arxiv.org/pdf/2309.06392)** 
 
 arXiv:2309.06392
 ---
