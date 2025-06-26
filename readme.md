@@ -1,5 +1,5 @@
 
-# A Fast Algorithm for Moderating Critical Nodes via Edge Removal
+# A Fast Algorithm for Moderating Critical Nodes
 
 ## Description
 
